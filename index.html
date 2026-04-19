@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NY Carbon Utilization Grant Database</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue: #185FA5; --blue-lt: #E6F1FB; --blue-dk: #0C447C;
+    --green: #3B6D11; --green-lt: #EAF3DE; --green-dk: #27500A;
+    --amber: #854F0B; --amber-lt: #FAEEDA; --amber-dk: #633806;
+    --red: #A32D2D; --red-lt: #FCEBEB; --red-dk: #791F1F;
+    --purple: #534AB7; --purple-lt: #EEEDFE; --purple-dk: #3C3489;
+    --teal: #0E6E6E; --teal-lt: #E0F3F3; --teal-dk: #084F4F;
+    --gray: #5F5E5A; --gray-lt: #F1EFE8; --gray-dk: #444441;
+    --border: #d6d4cb; --bg: #f8f7f4; --white: #ffffff;
+    --text: #1a1a18; --text-2: #5f5e5a; --text-3: #888780;
+    --radius: 8px; --radius-lg: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+  a { color: var(--blue); }
+  .page { max-width: 980px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* Header */
+  .header { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem 2rem 1.5rem; margin-bottom: 1.5rem; }
+  .header h1 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .header-sub { font-size: 13px; color: var(--text-2); margin-bottom: 1rem; }
+  .header-stats { display: flex; flex-wrap: wrap; gap: 24px; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-val { font-size: 18px; font-weight: 700; color: var(--text); }
+  .stat-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; }
+
+  /* Alert */
+  .alert { background: #FFF8E6; border: 1px solid #F0C040; border-radius: var(--radius); padding: .75rem 1rem; margin-bottom: 1.25rem; font-size: 13px; color: #6B4A00; display: flex; gap: 8px; align-items: flex-start; }
+  .alert svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* Filters */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--white); font-size: 13px; color: var(--text-2); cursor: pointer; transition: all .15s; font-family: var(--font); }
+  .filter-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .filter-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 500; }
+
+  /* Cards */
+  .cards { display: flex; flex-direction: column; gap: 10px; }
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: box-shadow .15s; }
+  .card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+  .card-header { padding: 1rem 1.25rem; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none; }
+  .card-priority { width: 4px; border-radius: 4px; flex-shrink: 0; align-self: stretch; min-height: 40px; }
+  .priority-high { background: var(--green); }
+  .priority-medium { background: var(--amber); }
+  .priority-low { background: var(--gray); }
+  .priority-later { background: #C8C6BE; }
+  .card-meta { flex: 1; min-width: 0; }
+  .card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .card-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+  .badge-grant { background: var(--green-lt); color: var(--green-dk); }
+  .badge-loan { background: var(--purple-lt); color: var(--purple-dk); }
+  .badge-financing { background: var(--teal-lt); color: var(--teal-dk); }
+  .badge-competition { background: var(--amber-lt); color: var(--amber-dk); }
+  .badge-high { background: var(--green-lt); color: var(--green-dk); }
+  .badge-medium { background: var(--amber-lt); color: var(--amber-dk); }
+  .badge-suspended { background: var(--red-lt); color: var(--red-dk); }
+  .badge-later { background: var(--gray-lt); color: var(--gray-dk); }
+  .card-summary { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--text-2); margin-top: 4px; }
+  .card-summary span { display: flex; align-items: center; gap: 4px; }
+  .card-chevron { margin-left: auto; flex-shrink: 0; color: var(--text-3); transition: transform .2s; }
+  .card.open .card-chevron { transform: rotate(180deg); }
+
+  /* Card body */
+  .card-body { display: none; border-top: 1px solid var(--border); }
+  .card.open .card-body { display: block; }
+  .tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 1.25rem; gap: 0; }
+  .tab { padding: 10px 14px; font-size: 13px; color: var(--text-2); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; white-space: nowrap; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 500; }
+  .tab-panels { padding: 1.25rem; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .tab-panel p { font-size: 13.5px; color: var(--text-2); line-height: 1.65; margin-bottom: .75rem; }
+  .tab-panel p:last-child { margin-bottom: 0; }
+  .tab-panel strong { color: var(--text); font-weight: 600; }
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: .5rem; }
+  .info-item { background: var(--bg); border-radius: 6px; padding: 10px 12px; }
+  .info-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 3px; font-weight: 600; }
+  .info-val { font-size: 13px; color: var(--text); font-weight: 500; }
+  .strategic-box { background: var(--blue-lt); border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0; padding: 10px 14px; margin-top: .75rem; font-size: 13px; color: var(--blue-dk); line-height: 1.6; }
+  .suspended-box { background: var(--red-lt); border-left: 3px solid var(--red); border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 13px; color: var(--red-dk); line-height: 1.6; }
+
+  /* Count */
+  .results-count { font-size: 12px; color: var(--text-3); margin-bottom: .75rem; }
+
+  @media (max-width: 600px) {
+    .header-stats { gap: 16px; }
+    .card-summary { gap: 10px; }
+    .tabs { overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>NY Carbon Utilization Grant Database</h1>
+    <div class="header-sub">New York State funding programs for carbon capture, utilization, and clean energy manufacturing — updated April 2026</div>
+    <div class="header-stats">
+      <div class="stat"><span class="stat-val">10</span><span class="stat-label">Programs tracked</span></div>
+      <div class="stat"><span class="stat-val">8</span><span class="stat-label">Active / open</span></div>
+      <div class="stat"><span class="stat-val">$40M–$50M+</span><span class="stat-label">Est. grant capital available</span></div>
+      <div class="stat"><span class="stat-val">$25M</span><span class="stat-label">Debt financing (NY Green Bank)</span></div>
+    </div>
+  </div>
+
+  <!-- Alert -->
+  <div class="alert">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#854F0B" stroke-width="1.3"/><path d="M8 5v4" stroke="#854F0B" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11" r=".75" fill="#854F0B"/></svg>
+    <span><strong>Federal program status:</strong> Several federal programs (DOE FECM, DOE OCED, EPA GGRF, ARPA-E general) are currently suspended or paused as of early 2026. The IRA §45Q tax credit has been preserved. Monitor agency websites for reinstatement updates.</span>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All programs</button>
+    <button class="filter-btn" onclick="setFilter('grant', this)">Grants only</button>
+    <button class="filter-btn" onclick="setFilter('loan', this)">Loans / financing</button>
+    <button class="filter-btn" onclick="setFilter('high', this)">High priority</button>
+    <button class="filter-btn" onclick="setFilter('rolling', this)">Rolling deadlines</button>
+  </div>
+
+  <div class="results-count" id="results-count"></div>
+
+  <!-- Cards -->
+  <div class="cards" id="cards-container"></div>
+
+</div>
+
+<script>
+const programs = [
+  {
+    id: 1,
+    name: "WNY Power Proceeds Fund",
+    agency: "NYPA / WNYPPAB",
+    type: "grant",
+    typeLabel: "Grant",
+    typeBadge: "badge-grant",
+    priority: "high",
+    priorityLabel: "High priority",
+    priorityBar: "priority-high",
+    priorityBadge: "badge-high",
+    funding: "$12,500 – $1.6M+ per project",
+    deadline: "Rolling (board meets every 6–8 weeks)",
+    deadlineType: "rolling",
+    match: "None required",
+    description: "Allocates a portion of NYPA's Niagara Power Project revenues to economic development in Western New York. Eligible projects within 30 miles of the Niagara Power Project (which includes Lockport) can receive grants tied to job retention and creation metrics. A key criterion is demonstrated employment impact — the 69 retained jobs threshold maps directly to the fund's evaluation framework. Awards have ranged from $12,500 for small projects to over $1.6M for large manufacturing investments.",
+    eligibility: "Must be located within 30 miles of the Niagara Power Project. Businesses must demonstrate job creation or retention. Manufacturing, industrial, and technology businesses are prioritized. Projects must show economic development benefit to WNY.",
+    applicationProcess: "Contact NYPA's Economic Development team at PoweringBusiness@nypa.gov to initiate the application process. Applications are reviewed at WNYPPAB board meetings held approximately every 6–8 weeks. There is no fixed annual deadline — submissions can be made year-round, but timing to the next board meeting affects review speed.",
+    contact: "PoweringBusiness@nypa.gov | (800) 342-3355 | nypa.gov/economic-development",
+    strategic: "The 30-mile radius from Niagara Falls covers Lockport directly. The 69 retained jobs is a strong qualifying factor — this fund explicitly rewards employment preservation in WNY manufacturing. Rolling deadline means an application can be submitted immediately. This should be among the first programs pursued.",
+    suspended: false
+  },
+  {
+    id: 2,
+    name: "NYSERDA C&I Carbon Challenge",
+    agency: "NYSERDA",
+    type: "grant",
+    typeLabel: "Grant",
+    typeBadge: "badge-grant",
+    priority: "high",
+    priorityLabel: "High priority",
+    priorityBar: "priority-high",
+    priorityBadge: "badge-high",
+    funding: "$500,000 – $5,000,000",
+    deadline: "~July 31, 2026 (CFA cycle, anticipated)",
+    deadlineType: "annual",
+    match: "None required (SBC payers) / Cost-share encouraged (non-SBC)",
+    description: "Provides $500K–$5M to large commercial and industrial NY energy users — or to Category B solution providers selling decarbonization services — to fund portfolios of carbon-reduction projects. Projects must include at least one of: carbon capture, beneficial electrification, industrial process emission reduction, or low-carbon fuels. Awardees receive a dedicated NYSERDA project manager and technical specialist. Annual program tied to the REDC CFA cycle; Round 7 closed July 31, 2025 and Round 8 is anticipated to open with the 2026 CFA in May–June 2026.",
+    eligibility: "Large C&I NY energy users OR Category B decarbonization solution providers. Must reduce ≥25,000 mtCO₂e over project lifetime. SBC payers and non-SBC entities both eligible under different award tiers. Technology must be at TRL 7 or above for deployment projects.",
+    applicationProcess: "Apply via the NY Consolidated Funding Application (CFA) at apps.cio.ny.gov/apps/cfa. CFA typically opens late May/early June and closes July 31 at 4:00 PM. A Letter of Intent is not required but early engagement with NYSERDA is recommended.",
+    contact: "commercialindustrial@nyserda.ny.gov | (518) 862-1090 | nyserda.ny.gov/carbon-challenge",
+    strategic: "CO₂-to-NaHCO₃/Na₂CO₃ conversion at TRL 7 aligns well with the carbon capture mandate. The startup can apply as a Category B solution provider, which is the stronger fit given pre-revenue status. Begin NYSERDA outreach in April–May to prepare for the CFA opening.",
+    suspended: false
+  },
+  {
+    id: 3,
+    name: "NYSERDA Clean Energy Fund (R&D)",
+    agency: "NYSERDA",
+    type: "grant",
+    typeLabel: "Grant",
+    typeBadge: "badge-grant",
+    priority: "high",
+    priorityLabel: "High priority",
+    priorityBar: "priority-high",
+    priorityBadge: "badge-high",
+    funding: "$500,000 – $5,000,000+",
+    deadline: "Rolling RFPs (check nyserda.ny.gov for active solicitations)",
+    deadlineType: "rolling",
+    match: "Cost-share typically required (20–50% depending on solicitation)",
+    description: "NYSERDA's Clean Energy Fund R&D program issues rolling solicitations for early-stage to near-commercial clean energy technologies. Priority areas include carbon management, industrial decarbonization, and energy storage. Awards support techno-economic analysis, prototype development, pilot demonstrations, and scale-up activities. Typical awards range from $500K for early-stage projects to $5M+ for demonstration-scale work.",
+    eligibility: "NY-based entities or partnerships including startups, universities, and national labs. Technology must address a NYSERDA priority area. Cost-share from private or institutional sources is typically required. TRL 4–8 projects are eligible depending on the solicitation.",
+    applicationProcess: "Monitor nyserda.ny.gov/funding-opportunities for active R&D solicitations. NYSERDA also issues targeted RFPs to companies already in their network — early engagement with a NYSERDA project manager increases visibility for upcoming solicitations.",
+    contact: "rdinfo@nyserda.ny.gov | nyserda.ny.gov/funding-opportunities",
+    strategic: "At TRL 7, the startup is positioned for demonstration-scale R&D funding. Engaging NYSERDA now — before a solicitation opens — increases the likelihood of being invited to apply or co-designing a proposal around their priorities.",
+    suspended: false
+  },
+  {
+    id: 4,
+    name: "CDI Bridge Carbontech",
+    agency: "Columbia Technology Ventures / CDI",
+    type: "grant",
+    typeLabel: "Grant",
+    typeBadge: "badge-grant",
+    priority: "medium",
+    priorityLabel: "Monitor — next round TBD",
+    priorityBar: "priority-medium",
+    priorityBadge: "badge-medium",
+    funding: "Up to $375,000",
+    deadline: "Round 4 closed January 14, 2026. Round 5 not yet announced.",
+    deadlineType: "periodic",
+    match: "None required",
+    description: "The Carbontech Development Initiative (CDI) Bridge program provides non-dilutive grants of up to $375,000 to carbon utilization startups to accelerate technology development and commercialization. Managed by Columbia Technology Ventures in partnership with NYSERDA and Carbon180. The program specifically targets CO₂ utilization and conversion technologies. Round 4 closed January 14, 2026; awardees are being notified and Round 5 has not yet been announced.",
+    eligibility: "Carbon utilization startups at TRL 4–7. Must have a commercialization pathway. NY-nexus preferred but not always required. Prior CDI cohort participants may re-apply for subsequent rounds.",
+    applicationProcess: "Applications are submitted through Columbia Technology Ventures' CDI portal when a round is open. Monitor carbontechdev.com and NYSERDA's website for Round 5 announcement. Past rounds have had 6–8 week application windows.",
+    contact: "carbontechdev.com | cdi@columbia.edu | Columbia Technology Ventures",
+    strategic: "CO₂-to-carbonate conversion is a core use case for CDI. The startup's TRL 7 status and existing NYSERDA relationship are strong differentiators. Monitor for Round 5 announcement — typical cadence suggests a mid-2026 opening is possible.",
+    suspended: false
+  },
+  {
+    id: 5,
+    name: "ESD Regional Council Capital Fund (CFA)",
+    agency: "Empire State Development / REDC",
+    type: "grant",
+    typeLabel: "Grant",
+    typeBadge: "badge-grant",
+    priority: "high",
+    priorityLabel: "High priority",
+    priorityBar: "priority-high",
+    priorityBadge: "badge-high",
+    funding: "Varies by project (typically $250K – $5M for capital projects)",
+    deadline: "Annual CFA cycle — ~July 31, 2026 (anticipated)",
+    deadlineType: "annual",
+    match: "Match encouraged; stronger applications include private investment",
+    description: "The Regional Economic Development Council (REDC) Capital Fund, accessed through the Consolidated Funding Application (CFA), allocates state economic development capital to projects aligned with regional priorities. Western New York's REDC has consistently prioritized advanced manufacturing, clean energy, and job creation in Niagara and Erie counties. Awards are project-specific and can fund construction, equipment, and infrastructure. The CFA is a single application that simultaneously routes proposals to multiple ESD programs.",
+    eligibility: "Businesses and nonprofits in New York State. Must demonstrate economic development impact (jobs, investment, regional alignment). Projects in WNY benefit from strong REDC support for manufacturing and clean energy. Capital projects with tangible job numbers score highest.",
+    applicationProcess: "Apply at apps.cio.ny.gov/apps/cfa when the CFA opens (typically late May/early June). Complete the CFA questionnaire — the system routes the application to the appropriate ESD programs automatically. Engaging the WNY REDC co-chairs or ESD regional office before submission strengthens the application.",
+    contact: "WNY Regional Office: (716) 846-8200 | esd.ny.gov | apps.cio.ny.gov/apps/cfa",
+    strategic: "Lockport's location in Niagara County is a strong asset — WNY REDC has a history of funding clean energy manufacturing projects in this region. The 69 retained jobs and capital investment in a CO₂ conversion facility align with REDC's stated priorities. Submit via the CFA alongside the C&I Carbon Challenge application to maximize reach.",
+    suspended: false
+  },
+  {
+    id: 6,
+    name: "ESD FAST NY",
+    agency: "Empire State Development",
+    type: "grant",
+    typeLabel: "Grant",
+    typeBadge: "badge-grant",
+    priority: "medium",
+    priorityLabel: "Medium priority",
+    priorityBar: "priority-medium",
+    priorityBadge: "badge-medium",
+    funding: "Up to $500,000",
+    deadline: "Annual CFA cycle — ~July 31, 2026 (anticipated)",
+    deadlineType: "annual",
+    match: "None explicitly required, but matching investment strengthens applications",
+    description: "Fostering Agriculture, Science and Technology in New York (FAST NY) provides grants of up to $500,000 for capital projects that support technology commercialization and manufacturing scale-up. While originally focused on ag-tech, the program has broadened to include clean technology and industrial manufacturing. Projects must demonstrate a clear path to commercialization and NY-based job creation.",
+    eligibility: "NY-based businesses commercializing technology products. Must be engaged in or transitioning to manufacturing. Projects should demonstrate economic development impact and job creation in New York.",
+    applicationProcess: "Apply through the NY CFA at apps.cio.ny.gov/apps/cfa during the annual CFA cycle (typically late May–July 31). FAST NY is one of several ESD programs auto-routed through the CFA based on project characteristics.",
+    contact: "esd.ny.gov/fast-ny | ESD Regional Office: (716) 846-8200",
+    strategic: "Applicable for scale-up capital at the Lockport facility. Stack with POWER UP and the CFA/REDC application for maximum ESD coverage in a single submission cycle.",
+    suspended: false
+  },
+  {
+    id: 7,
+    name: "ESD POWER UP",
+    agency: "Empire State Development",
+    type: "grant",
+    typeLabel: "Grant",
+    typeBadge: "badge-grant",
+    priority: "medium",
+    priorityLabel: "Medium priority",
+    priorityBar: "priority-medium",
+    priorityBadge: "badge-medium",
+    funding: "Up to $500,000",
+    deadline: "Annual CFA cycle — ~July 31, 2026 (anticipated)",
+    deadlineType: "annual",
+    match: "None explicitly required",
+    description: "Promoting Opportunities for Workers in Emerging and Revolutionary (POWER) industries — POWER UP provides grants up to $500,000 for capital investments that support clean energy manufacturing and workforce development. Designed to support NY's transition to a clean energy economy by funding facilities, equipment, and infrastructure for companies in the clean energy supply chain.",
+    eligibility: "NY-based clean energy manufacturers or companies in the clean energy supply chain. Must demonstrate job creation or retention. Capital projects for facility expansion, equipment, or infrastructure are prioritized.",
+    applicationProcess: "Apply through the NY CFA at apps.cio.ny.gov/apps/cfa. POWER UP is auto-routed through the CFA based on project type. Flagging the project as clean energy manufacturing increases routing likelihood.",
+    contact: "esd.ny.gov/power-up | ESD Regional Office: (716) 846-8200",
+    strategic: "CO₂-to-carbonate manufacturing fits squarely within the clean energy supply chain rationale for POWER UP. At $500K maximum, it is best pursued as part of a stacked CFA submission alongside FAST NY and REDC/CFA.",
+    suspended: false
+  },
+  {
+    id: 8,
+    name: "ESD Strategic Site Readiness Program",
+    agency: "Empire State Development",
+    type: "grant",
+    typeLabel: "Grant",
+    typeBadge: "badge-grant",
+    priority: "medium",
+    priorityLabel: "Medium priority",
+    priorityBar: "priority-medium",
+    priorityBadge: "badge-medium",
+    funding: "Varies by project scope (typically $250K – $2M)",
+    deadline: "Rolling / CFA-integrated",
+    deadlineType: "rolling",
+    match: "Match encouraged for larger awards",
+    description: "The Strategic Site Readiness Program funds infrastructure improvements and site preparation activities that make industrial sites ready for business attraction, retention, or expansion. Eligible uses include utility connections, environmental remediation, access road improvements, broadband, and other site infrastructure. Particularly relevant for industrial facilities in legacy manufacturing regions like Niagara County.",
+    eligibility: "NY municipalities, industrial development agencies, and private businesses with site control. Projects must demonstrate economic development benefit and readiness to attract or retain jobs. WNY projects are well-aligned with regional priorities.",
+    applicationProcess: "Can be submitted through the NY CFA or as a standalone ESD application. Early engagement with ESD's WNY regional office is recommended to confirm program fit before submission. Contact ESD at (716) 846-8200.",
+    contact: "esd.ny.gov | WNY Regional Office: (716) 846-8200",
+    strategic: "If the Lockport facility requires utility upgrades (e.g., CO₂ feedstock connections, industrial water, or expanded electrical capacity for NYPA power integration), this program can fund those infrastructure costs specifically — freeing other grant dollars for technology and operations.",
+    suspended: false
+  },
+  {
+    id: 9,
+    name: "Niagara Economic Development Fund (NEDF)",
+    agency: "Niagara County Center for Economic Development",
+    type: "loan",
+    typeLabel: "Loan",
+    typeBadge: "badge-loan",
+    priority: "medium",
+    priorityLabel: "Medium priority",
+    priorityBar: "priority-medium",
+    priorityBadge: "badge-medium",
+    funding: "Up to $250,000 (gap financing)",
+    deadline: "Fully rolling — no fixed deadline",
+    deadlineType: "rolling",
+    match: "Requires primary lender (gap financing structure)",
+    description: "A low-interest loan program administered by the Niagara County Center for Economic Development (NCCED) that provides gap financing alongside a primary commercial lender. Designed to support business expansion and job creation in Niagara County. Not a grant — must be repaid — but offered at below-market interest rates. Requires a primary lender relationship and is structured as a second position loan.",
+    eligibility: "Businesses located in Niagara County. Must have a primary lender providing the majority of financing. Must demonstrate job creation or retention. Projects must be economically viable and have an established business plan.",
+    applicationProcess: "No fixed deadline — applications accepted year-round. Contact NCCED at (716) 278-8750 or visit niagaracountybusiness.com/loan-programs to initiate an eligibility conversation before submitting. A project manager discussion is required prior to formal application.",
+    contact: "(716) 278-8750 | niagaracountybusiness.com/loan-programs | NCCED, 6311 Inducon Drive E, Sanborn, NY 14132",
+    strategic: "Useful as gap financing once the startup secures a primary lender for facility expansion or equipment purchases. Best pursued after a primary lending relationship is established. The Niagara County location is a direct eligibility advantage.",
+    suspended: false
+  },
+  {
+    id: 10,
+    name: "NY Green Bank — Clean Energy Financing",
+    agency: "NY Green Bank (NYSERDA affiliate)",
+    type: "loan",
+    typeLabel: "Debt Financing",
+    typeBadge: "badge-financing",
+    priority: "later",
+    priorityLabel: "Later stage",
+    priorityBar: "priority-later",
+    priorityBadge: "badge-later",
+    funding: "Up to $25,000,000 (debt financing)",
+    deadline: "Rolling — applications accepted year-round",
+    deadlineType: "rolling",
+    match: "Not a grant; requires debt repayment capacity",
+    description: "NY Green Bank provides debt financing (loans, credit facilities, guarantees) to clean energy projects that cannot access sufficient private capital. Not a grant — all capital must be repaid. Designed to mobilize private investment by de-risking early-stage clean energy deals. Financing can be structured as term loans, revolving credit, or credit enhancements. Typical transactions range from $1M to $25M+.",
+    eligibility: "Clean energy projects in New York State with demonstrated revenue or a clear path to revenue. Must show inability to access sufficient private capital on market terms. NY Green Bank is not a substitute for equity — the project must be creditworthy.",
+    applicationProcess: "Submit an initial inquiry at greenbank.ny.gov/apply. NY Green Bank conducts a pre-screening before inviting a full application. Early engagement with their team is recommended to assess fit before investing in a full proposal.",
+    contact: "greenbank.ny.gov | info@greenbank.ny.gov | (212) 312-3500",
+    strategic: "Most relevant once the startup reaches commercial-scale operations and can demonstrate revenue. Pre-revenue stage is generally too early for NY Green Bank debt financing. Flag for 2027–2028 as the startup scales. A NYSERDA grant relationship can help warm the NY Green Bank conversation.",
+    suspended: false
+  }
+];
+
+let activeFilter = 'all';
+let openCards = new Set();
+
+function setFilter(filter, btn) {
+  activeFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards();
+}
+
+function getFiltered() {
+  return programs.filter(p => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'grant') return p.type === 'grant';
+    if (activeFilter === 'loan') return p.type === 'loan' || p.type === 'financing';
+    if (activeFilter === 'high') return p.priority === 'high';
+    if (activeFilter === 'rolling') return p.deadlineType === 'rolling';
+    return true;
+  });
+}
+
+function toggleCard(id) {
+  if (openCards.has(id)) { openCards.delete(id); } else { openCards.add(id); }
+  renderCards();
+}
+
+function switchTab(cardId, tabName) {
+  const card = document.querySelector(`[data-card-id="${cardId}"]`);
+  card.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+  card.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tabName));
+}
+
+function renderCards() {
+  const filtered = getFiltered();
+  const container = document.getElementById('cards-container');
+  const countEl = document.getElementById('results-count');
+  countEl.textContent = `Showing ${filtered.length} of ${programs.length} programs`;
+
+  container.innerHTML = filtered.map(p => {
+    const isOpen = openCards.has(p.id);
+    const activeTab = 'description';
+    return `
+    <div class="card${isOpen ? ' open' : ''}" data-card-id="${p.id}">
+      <div class="card-header" onclick="toggleCard(${p.id})">
+        <div class="card-priority ${p.priorityBar}"></div>
+        <div class="card-meta">
+          <div class="card-top">
+            <span class="card-name">${p.name}</span>
+            <span class="badge ${p.typeBadge}">${p.typeLabel}</span>
+            <span class="badge ${p.priorityBadge}">${p.priorityLabel}</span>
+          </div>
+          <div class="card-summary">
+            <span>🏛 ${p.agency}</span>
+            <span>💰 ${p.funding}</span>
+            <span>📅 ${p.deadline}</span>
+            ${p.match !== 'None required' ? `<span>🔗 Match: ${p.match}</span>` : ''}
+          </div>
+        </div>
+        <svg class="card-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      ${isOpen ? `
+      <div class="card-body">
+        <div class="tabs">
+          <div class="tab active" data-tab="description" onclick="switchTab(${p.id}, 'description')">Overview</div>
+          <div class="tab" data-tab="eligibility" onclick="switchTab(${p.id}, 'eligibility')">Eligibility</div>
+          <div class="tab" data-tab="application" onclick="switchTab(${p.id}, 'application')">How to Apply</div>
+          <div class="tab" data-tab="strategic" onclick="switchTab(${p.id}, 'strategic')">Strategic Note</div>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel active" data-panel="description">
+            <p>${p.description}</p>
+            <div class="info-grid">
+              <div class="info-item"><div class="info-label">Funding amount</div><div class="info-val">${p.funding}</div></div>
+              <div class="info-item"><div class="info-label">Match requirement</div><div class="info-val">${p.match}</div></div>
+              <div class="info-item"><div class="info-label">Deadline</div><div class="info-val">${p.deadline}</div></div>
+              <div class="info-item"><div class="info-label">Administering agency</div><div class="info-val">${p.agency}</div></div>
+            </div>
+          </div>
+          <div class="tab-panel" data-panel="eligibility">
+            <p>${p.eligibility}</p>
+          </div>
+          <div class="tab-panel" data-panel="application">
+            <p>${p.applicationProcess}</p>
+            <div class="strategic-box"><strong>Contact & links:</strong> ${p.contact}</div>
+          </div>
+          <div class="tab-panel" data-panel="strategic">
+            <div class="strategic-box">${p.strategic}</div>
+          </div>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+renderCards();
+</script>
+</body>
+</html>
